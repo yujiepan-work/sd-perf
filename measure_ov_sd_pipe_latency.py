@@ -6,11 +6,12 @@ import time
 import numpy as np
 import pandas as pd
 from cpuinfo import get_cpu_info
-
+from diffusers import DPMSolverMultistepScheduler
 from optimum.intel.openvino import OVStableDiffusionPipeline
 
 def create_openvino_sd_pipe(model_id, h=512, w=512):
-    pipe = OVStableDiffusionPipeline.from_pretrained(model_id, compile=False)
+    dpm = DPMSolverMultistepScheduler.from_pretrained(model_id, subfolder="scheduler")
+    pipe = OVStableDiffusionPipeline.from_pretrained(model_id, scheduler=dpm, compile=False)
     pipe.reshape(batch_size=1, height=h, width=w, num_images_per_prompt=1)
     pipe.compile()
     return pipe
