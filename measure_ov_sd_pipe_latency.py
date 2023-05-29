@@ -5,6 +5,7 @@ import os
 import time
 import numpy as np
 import pandas as pd
+import socket
 from cpuinfo import get_cpu_info
 from diffusers import DPMSolverMultistepScheduler
 from optimum.intel.openvino import OVStableDiffusionPipeline
@@ -93,7 +94,7 @@ for k, model_id in t2i_model_dict.items():
     t2i_sd_latency[k] = t
     print(f"[Info]: End of measurement ---\n\n")
 
-csv_path = "ovsd.latency.{}.csv".format(get_cpu_info()['brand_raw'].replace(" ", "_"))
+csv_path = "ovsd.latency.{}-{}.csv".format(socket.gethostname(), get_cpu_info()['brand_raw'].replace(" ", "_"))
 pokemon_sd_latency.update(t2i_sd_latency)
 df = pd.Series(pokemon_sd_latency, name='latency (sec)').to_frame()
 df.to_csv(csv_path)
