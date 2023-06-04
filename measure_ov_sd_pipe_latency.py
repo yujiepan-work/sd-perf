@@ -1,4 +1,5 @@
-
+from check_devices import check_ov_devices
+check_ov_devices()
 import torch
 import random
 import os
@@ -10,9 +11,10 @@ from cpuinfo import get_cpu_info
 from diffusers import DPMSolverMultistepScheduler
 from optimum.intel.openvino import OVStableDiffusionPipeline
 
-def create_openvino_sd_pipe(model_id, h=512, w=512):
+def create_openvino_sd_pipe(model_id, device, h=512, w=512):
+    print("[Info]: Create OV pipeline with model_id: {} on device: {}".format(model_id, device))
     dpm = DPMSolverMultistepScheduler.from_pretrained(model_id, subfolder="scheduler")
-    pipe = OVStableDiffusionPipeline.from_pretrained(model_id, scheduler=dpm, compile=False)
+    pipe = OVStableDiffusionPipeline.from_pretrained(model_id, scheduler=dpm, device=device, compile=False)
     pipe.reshape(batch_size=1, height=h, width=w, num_images_per_prompt=1)
     pipe.compile()
     return pipe
@@ -47,30 +49,33 @@ random.seed(42)
 torch.manual_seed(42)
 
 # dryrun - primary purpose is to download models and flush the pipeline
+DEVICE="gpu" # "cpu" or "gpu"
 DRYRUN_BOOL=False
+
 if DRYRUN_BOOL:
     outdir = "/tmp/dryrun/sd-pokemon"
     os.makedirs(outdir, exist_ok=True)
     for k, model_id in pokemon_model_dict.items():
-        print(f"[Info]: Start of {k}")
-        pipe = create_openvino_sd_pipe(model_id)
+        print(f"\n[Info]: Start of {k}")
+        pipe = create_openvino_sd_pipe(model_id, DEVICE)
         prompt = "cartoon bird"
         output = pipe(prompt, num_inference_steps=20, output_type="pil")
         output.images[0].save(f"{outdir}/{k}.png")
         print(f"[Info]: End of {k}")
+        del pipe
 
 if DRYRUN_BOOL:
     outdir = "/tmp/dryrun/sd-t2i"
     os.makedirs(outdir, exist_ok=True)
     for k, model_id in t2i_model_dict.items():
-        print(f"[Info]: Start of {k}")
-        pipe = create_openvino_sd_pipe(model_id)
+        print(f"\n[Info]: Start of {k}")
+        pipe = create_openvino_sd_pipe(model_id, DEVICE)
         prompt = "sailing ship in storm by Rembrandt"
         output = pipe(prompt, num_inference_steps=20, output_type="pil")
         output.images[0].save(f"{outdir}/{k}.png")
         print(f"[Info]: End of {k}")
+        del pipe
 # ----------------------------------------------------------------------------
-
 # Measure
 
 prof_unet_nstep = 20
@@ -79,20 +84,22 @@ prof_nloop = 10
 pokemon_sd_latency = dict()
 for k, model_id in pokemon_model_dict.items():
     print(f"[Info]: target: {k}")
-    pipe = create_openvino_sd_pipe(model_id)
+    pipe = create_openvino_sd_pipe(model_id, DEVICE)
     prompt = "cartoon bird"
     t = get_elapsed_time(pipe, prompt, nb_pass=prof_nloop, num_inference_steps=prof_unet_nstep)
     pokemon_sd_latency[k] = t
     print(f"[Info]: End of measurement ---\n\n")
+    del pipe
 
 t2i_sd_latency = dict()
 for k, model_id in t2i_model_dict.items():
     print(f"[Info]: target: {k}")
-    pipe = create_openvino_sd_pipe(model_id)
+    pipe = create_openvino_sd_pipe(model_id, DEVICE)
     prompt = "sailing ship in storm by Rembrandt"
     t = get_elapsed_time(pipe, prompt, nb_pass=prof_nloop, num_inference_steps=prof_unet_nstep)
     t2i_sd_latency[k] = t
     print(f"[Info]: End of measurement ---\n\n")
+    del pipe
 
 csv_path = "ovsd.latency.{}-{}.csv".format(socket.gethostname(), get_cpu_info()['brand_raw'].replace(" ", "_"))
 pokemon_sd_latency.update(t2i_sd_latency)
