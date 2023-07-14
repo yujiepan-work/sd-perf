@@ -49,7 +49,7 @@ random.seed(42)
 torch.manual_seed(42)
 
 # dryrun - primary purpose is to download models and flush the pipeline
-DEVICE="gpu" # "cpu" or "gpu"
+DEVICE="cpu" # "cpu" or "gpu"
 DRYRUN_BOOL=False
 
 if DRYRUN_BOOL:
@@ -101,7 +101,8 @@ for k, model_id in t2i_model_dict.items():
     print(f"[Info]: End of measurement ---\n\n")
     del pipe
 
-csv_path = "ovsd.latency.{}-{}.csv".format(socket.gethostname(), get_cpu_info()['brand_raw'].replace(" ", "_"))
+import openvino.runtime as ovrt
+csv_path = "ov{}.sd.latency.{}-{}.csv".format(ovrt.__version__.split('-')[0], socket.gethostname(), get_cpu_info()['brand_raw'].replace(" ", "_"))
 pokemon_sd_latency.update(t2i_sd_latency)
 df = pd.Series(pokemon_sd_latency, name='latency (sec)').to_frame()
 df.to_csv(csv_path)
