@@ -16,3 +16,9 @@ python3 measure_ov_sd_pipe_latency.py
 # 2) even with the above, GPU is not found during debug mode in vscode. Further troubleshooting is needed here.
 # 3) memory are not freed up after pipe is not used. Workaround: del pipe. "reproduce error by compiling many models on gpu"
 ```
+
+Updated by yujie:
+```bash
+pip install diffusers==0.18.1
+python measure_ov_sd_pipe_latency_poke.py
+```
